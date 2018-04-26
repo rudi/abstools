@@ -76,13 +76,14 @@ public class ABSRuntime {
      * @throws InstantiationException if the Main class could not be instantiated
      * @throws IllegalAccessException if the Main class could not be accessed
      */
-    public void start(Class<?> mainClass) throws InstantiationException, IllegalAccessException {
+    public int start(Class<?> mainClass) throws InstantiationException, IllegalAccessException {
         systemStarted();
         COG cog = createCOG(mainClass, null);
         try {
             Constructor<?> constr = mainClass.getConstructor(COG.class);
             ABSObject mainObject = (ABSObject) constr.newInstance(cog);
             cogCreated(mainObject);
+            // TODO store future here, await result, convert to int, return.
             asyncCall(new ABSMainCall(mainObject));
             doNextStep();
         } catch (SecurityException e) {
@@ -94,6 +95,7 @@ public class ABSRuntime {
         } catch (InvocationTargetException e) {
             e.printStackTrace();
         }
+        return 0;
     }
 
     int freshTaskID() {

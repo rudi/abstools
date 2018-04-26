@@ -9,6 +9,7 @@ import java.util.List;
 import abs.backend.java.lib.types.ABSBool;
 import abs.backend.java.lib.types.ABSRef;
 import abs.backend.java.lib.types.ABSUnit;
+import abs.backend.java.lib.types.ABSInteger;
 import abs.backend.java.lib.types.ABSValue;
 import abs.backend.java.observing.COGView;
 import abs.backend.java.observing.ClassView;
@@ -64,8 +65,10 @@ public abstract class ABSObject implements ABSRef {
     /**
      * Represents an optional run method
      */
-    public ABSUnit run() {
-        return ABSUnit.UNIT;
+    public ABSInteger run() {
+        // KLUDGE: return ABSInteger instead of ABSUnit so the main block can
+        // return an integer.
+        return ABSInteger.ZERO;
     }
 
     public final boolean  __ABS_isSameCOG() {

@@ -162,3 +162,28 @@ import Drink from Drinks;
 
 only re-exports `Drink`, as this is the only name imported from module
 `Drinks`.
+
+=== The Main Block
+
+A module can contain a _main block_, which consists of a sequence of
+statements.  The main block defines the overall behavior of a model,
+usually via instantiating objects and issuing some method calls.
+
+A main block can contain an optional `return` statement, which must
+take a value of type `Int`.  That value is returned to the environment
+which started the model -- for example this value will be the exit
+code when the ABS model was started from a shell.
+
+[source]
+----
+module HelloWorld;
+
+{
+  println("Hello world!");
+  return 0;
+}
+----
+
+Note that a `return` statement in a main block will not have an effect
+if the Model API is active, since the model will keep running
+indefinitely.

@@ -59,7 +59,8 @@ aspect GenerateJava {
 
                 stream.println("public class " + mainName + " extends " + ABSObject.class.getName() + " {");
                 stream.println("public static void main(java.lang.String[] args) throws Exception {");
-                stream.println(StartUp.class.getName() + ".startup(args," + mainName + ".class);");
+                stream.println("int result = " + StartUp.class.getName() + ".startup(args," + mainName + ".class);");
+				stream.println("if (result != 0) { System.exit(result); }");
                 stream.println("}");
 
                 stream.println("public java.lang.String getClassName() { return \"Main\"; }");
@@ -67,9 +68,12 @@ aspect GenerateJava {
                 stream.println("public " + mainName + "(" + COG.class.getName() + " cog) { super(cog); }");
 
                 // main block
-                stream.println("public " + ABSUnit.class.getName() + " run() {");
+                stream.println("public " + ABSInteger.class.getName() + " run() {");
                 block.generateJava(stream);
-                stream.println("return " + JavaBackendConstants.UNITVALUE + ";");
+                if (block.getNumStmt() > 0
+                    && !(block.getStmt(block.getNumStmt() - 1) instanceof ReturnStmt)) {
+                    stream.println("return abs.backend.java.lib.types.ABSInteger.ZERO;");
+                }
                 stream.println("}");
                 stream.println("}");
             } finally {

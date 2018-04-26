@@ -9,7 +9,7 @@ import abs.backend.java.lib.net.NetworkImpl;
 import abs.backend.java.lib.net.NodeImpl;
 
 public class StartUp {
-    public static void startup(String[] args, Class<?> mainClass) throws InstantiationException, IllegalAccessException {
+    public static int startup(String[] args, Class<?> mainClass) throws InstantiationException, IllegalAccessException {
         RuntimeOptions options = new RuntimeOptions(args);
         Logging.setLogLevel(options.logLevel.stringValue());
         final ABSRuntime runtime;
@@ -24,6 +24,6 @@ public class StartUp {
         }
         ABSRuntime.setRunsInOwnProcess(true);
         new Config(runtime, options);
-        runtime.start(mainClass);
+        return runtime.start(mainClass);
     }
 }

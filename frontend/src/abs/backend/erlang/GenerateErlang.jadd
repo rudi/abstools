@@ -169,6 +169,13 @@ aspect GenerateErlang {
        ecs.println("cog_monitor:new_dc(DC),");
        ecs.println("Stack = [DC],");
        getBlock().generateErlangCode(ecs, Vars.n());
+       if (getBlock().getNumStmt() > 0
+           && !(getBlock().getStmt(getBlock().getNumStmt() - 1) instanceof ReturnStmt)) {
+           // do not return arbitrary data values from main block function,
+           // except when there's an explicit `return' statement.
+           ecs.println(",");
+           ecs.print("ok");
+       }
        ecs.println('.');
        ecs.decIndent();
        ecs.println();

@@ -494,7 +494,8 @@ aspect TypeChecker {
         super.typeCheck(e);
         if (getNumStmt() > 0) {
             Stmt lastStmt = getStmt(getNumStmt()-1);
-            if (lastStmt instanceof ReturnStmt) {
+            if (lastStmt instanceof ReturnStmt
+                && !((ReturnStmt)lastStmt).getRetExp().getType().isIntType()) {
                 e.add(new TypeError(lastStmt, ErrorMessage.MAIN_BLOCK_RETURN_STMT, "dummy"));
             }
         }

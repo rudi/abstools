@@ -12,6 +12,7 @@ import java.util.Map;
 
 import abs.backend.java.codegeneration.dynamic.DynamicException;
 import abs.backend.java.lib.types.ABSUnit;
+import abs.backend.java.lib.types.ABSInteger;
 import abs.backend.java.lib.types.ABSValue;
 import abs.backend.java.observing.COGView;
 import abs.backend.java.observing.ClassView;
@@ -112,12 +113,14 @@ public class ABSDynamicObject extends ABSObject {
         return method.exec(this, params);
     }
 
-    public ABSUnit run() {
+    public ABSInteger run() {
+        // KLUDGE: return ABSInteger instead of ABSUnit so the main block can
+        // return an integer.
         ABSClosure cl = clazz.getMethod("run");
         if (cl != null) {
             cl.exec(this);
         }
-        return ABSUnit.UNIT;
+        return ABSInteger.ZERO;
     }
 
 

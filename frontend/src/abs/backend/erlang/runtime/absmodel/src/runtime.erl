@@ -37,7 +37,12 @@ init([]) ->
 start()->
     case init:get_plain_arguments() of
         []->
-            run_mod(?ABSMAINMODULE, false, false, none, none, none, none, none);
+            Result = run_mod(?ABSMAINMODULE, false, false, none, none, none, none, none),
+            case is_integer(Result) of
+                %% did the main block exit with a `return' statement?
+                true -> halt(Result);
+                false -> Result
+            end;
         Args->
             start(Args)
    end.
@@ -93,8 +98,13 @@ parse(Args,Exec)->
                      erlang:system_flag(schedulers_online,
                                         min(Schedulers, MaxSchedulers))
             end,
-            run_mod(Module, Debug, GCStatistics, Port, Clocklimit,
-                    InfluxdbUrl, InfluxdbDB, InfluxdbEnable);
+            Result=run_mod(Module, Debug, GCStatistics, Port, Clocklimit,
+                           InfluxdbUrl, InfluxdbDB, InfluxdbEnable),
+            case is_integer(Result) of
+                %% did the main block exit with a `return' statement?
+                true -> halt(Result);
+                false -> Result
+            end;
         _ ->
             getopt:usage(?CMDLINE_SPEC,Exec)
     end.
