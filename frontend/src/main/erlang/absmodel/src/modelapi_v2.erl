@@ -23,6 +23,7 @@ init(Req, _Opts) ->
             <<"call">> -> handle_object_call(cowboy_req:path_info(Req),
                                              cowboy_req:parse_qs(Req),
                                              Req);
+            <<"compile">> -> handle_compile_request(cowboy_req:parse_qs(Req), Req);
             <<"quit">> -> halt(0);              %sorry
             _ -> {404, <<"text/plain">>, <<"Not found">>}
         end,
@@ -163,6 +164,36 @@ handle_object_call([Objectname, Methodname], Parameters, Req) ->
                               jsx:encode([{'error', Msg }],
                                          [{space, 1}, {indent, 2}]) }
                     end
+            end
+    end.
+
+handle_compile_request(_Params, Req) ->
+    case cowboy_req:has_body(Req) of
+        false ->
+            { 400, <<"application/json">>,
+                   jsx:encode([{'error', <<"No body found in request">> }],
+                              [{space, 1}, {indent, 2}]) };
+        true ->
+            %% FIXME: we ignore the updated request `Req2'.  Hopefully
+            %% this won't matter since we don't attempt to read the
+            %% request body again (body can only be read once).
+            {ok, Code, Req2} = cowboy_req:read_body(Req),
+            try
+                {module, Name} = dynamic_compile:load_from_string(binary_to_list(Code)),
+                { 200, <<"application/json">>,
+                  jsx:encode([{'result', Name}], [{space, 1}, {indent, 2}]) }
+            catch
+                _:{incomplete_term, Msg, Line} ->
+                    { 400, <<"application/json">>,
+                      jsx:encode([{'error',
+                                   iolist_to_binary(["Error in line ",
+                                                     integer_to_list(Line),
+                                                     " near term \"", Msg, "\""]) }],
+                                 [{space, 1}, {indent, 2}]) };
+                _:_ ->
+                    { 400, <<"application/json">>,
+                      jsx:encode([{'error', <<"Error during parameter decoding">> }],
+                                 [{space, 1}, {indent, 2}]) }
             end
     end.
 
