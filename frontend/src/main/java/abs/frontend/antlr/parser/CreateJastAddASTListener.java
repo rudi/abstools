@@ -133,10 +133,14 @@ public class CreateJastAddASTListener extends ABSBaseListener {
 
     @Override public void enterCompilation_unit(ABSParser.Compilation_unitContext ctx) {
         this.result = setV(ctx, new CompilationUnit(this.filename,
-            new List<>(),
-            new List<>(), new List<>(),
-            new Opt<>(), new List<>(),
-            new List<>(), new List<>()));
+            new List<>(),       // ModuleDecl*
+            new List<>(),       // DynamicUpdateDecl*
+            new List<>(),       // DeltaDecl*
+            new List<>(),       // UpdateDecl*
+            new Opt<>(),        // ProductLine?
+            new List<>(),       // ProductDecl*
+            new List<>(),       // FeatureDecl*
+            new List<>()));     // FExt*
     }
 
     @Override public void exitCompilation_unit(ABSParser.Compilation_unitContext ctx) {

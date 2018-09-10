@@ -311,6 +311,16 @@ trait_oper : 'removes' methodsig                    #TraitRemoveFragment
 
 trait_usage: 'uses' trait_expr ';' ;
 
+dynamic_update_decl : 'update' TYPE_IDENTIFIER ';'
+        delta_access?
+        dynamic_oo_modifier*
+    ;
+
+dynamic_oo_modifier :  'adds' class_decl       # UpdateAddClassModifier
+    | 'modifies' class_decl                    # UpdateModifyClassModifier
+    | 'adds' interface_decl                    # UpdateAddInterfaceModifier
+    ;
+
 delta_decl : 'delta' TYPE_IDENTIFIER
         ('(' p+=delta_param (',' p+=delta_param)* ')')? ';'
         delta_access*
@@ -506,7 +516,9 @@ boundary_val : m='-'? i=INTLITERAL ;
 
 main_block : annotations '{' stmt* '}' ;
 
-compilation_unit : module_decl* delta_decl*
+compilation_unit : module_decl*
+        dynamic_update_decl*
+        delta_decl*
         update_decl*
         productline_decl? product_decl*
         ('root' feature_decl | 'extension' fextension)*
