@@ -145,6 +145,7 @@ public class CreateJastAddASTListener extends ABSBaseListener {
 
     @Override public void exitCompilation_unit(ABSParser.Compilation_unitContext ctx) {
         result.setModuleDeclList(l(ctx.module_decl()));
+        result.setDynamicUpdateDeclList(l(ctx.dynamic_update_decl()));
         result.setDeltaDeclList(l(ctx.delta_decl()));
         result.setProductLineOpt(o(ctx.productline_decl()));
         result.setProductDeclList(l(ctx.product_decl()));
@@ -831,6 +832,25 @@ public class CreateJastAddASTListener extends ABSBaseListener {
     @Override public void exitAny_identifier(ABSParser.Any_identifierContext ctx) {
         setV(ctx, v(ctx.getChild(0))); // relies on any_identifier
                                        // having one token
+    }
+
+    // Dynamic updates
+    @Override public void exitDynamic_update_decl(ABSParser.Dynamic_update_declContext ctx) {
+        setV(ctx, new DynamicUpdateDecl(ctx.TYPE_IDENTIFIER().getText(),
+                                        o(ctx.delta_access()),
+                                        l(ctx.dynamic_modifier())));
+    }
+
+    @Override public void exitDynamicAddClassModifier(ABSParser.DynamicAddClassModifierContext ctx) {
+        setV(ctx, new DynamicAddClassModifier(v(ctx.class_decl())));
+    }
+
+    @Override public void exitDynamicModifyClassModifier(ABSParser.DynamicModifyClassModifierContext ctx) {
+        setV(ctx, new DynamicModifyClassModifier(v(ctx.class_decl())));
+    }
+
+    @Override public void exitDynamicAddInterfaceModifier(ABSParser.DynamicAddInterfaceModifierContext ctx) {
+        setV(ctx, new DynamicAddInterfaceModifier(v(ctx.interface_decl())));
     }
 
     // Deltas

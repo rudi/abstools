@@ -313,12 +313,12 @@ trait_usage: 'uses' trait_expr ';' ;
 
 dynamic_update_decl : 'update' TYPE_IDENTIFIER ';'
         delta_access?
-        dynamic_oo_modifier*
+        dynamic_modifier*
     ;
 
-dynamic_oo_modifier :  'adds' class_decl       # UpdateAddClassModifier
-    | 'modifies' class_decl                    # UpdateModifyClassModifier
-    | 'adds' interface_decl                    # UpdateAddInterfaceModifier
+dynamic_modifier :  'adds' class_decl       # DynamicAddClassModifier
+    | 'modifies' class_decl                 # DynamicModifyClassModifier
+    | 'adds' interface_decl                 # DynamicAddInterfaceModifier
     ;
 
 delta_decl : 'delta' TYPE_IDENTIFIER

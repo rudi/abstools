@@ -11,7 +11,7 @@ Model ::= CompilationUnit* /Product*/ ;
 
 CompilationUnit ::= <Name> ModuleDecl* DynamicUpdateDecl* DeltaDecl* UpdateDecl* [ProductLine] ProductDecl* FeatureDecl* FExt*;
 ModuleDecl ::= <Name> Export* Import* Decl* [Block:MainBlock];
-DynamicUpdateDecl ::= <Name> [DeltaAccess] OOModifier* ;
+DynamicUpdateDecl ::= <Name> [DeltaAccess] DynamicModifier* ;
 DeltaDecl ::= <Name> Param:DeltaParamDecl* DeltaAccess* ModuleModifier* ;
 UpdateDecl ::= <Name> ObjectUpdate* ;
 
@@ -73,6 +73,11 @@ abstract HasCondition;
 HasField : HasCondition ::= FieldDecl;
 HasMethod : HasCondition ::= MethodSig;
 HasInterface : HasCondition ::= InterfaceTypeUse;
+
+abstract DynamicModifier;
+DynamicAddClassModifier : DynamicModifier ::= ClassDecl ;
+DynamicModifyClassModifier : DynamicModifier ::= ClassDecl ;
+DynamicAddInterfaceModifier : DynamicModifier ::= InterfaceDecl ;
 
 abstract ModuleModifier;
 abstract NamespaceModifier : ModuleModifier;
