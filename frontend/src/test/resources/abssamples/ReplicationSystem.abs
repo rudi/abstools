@@ -1156,7 +1156,7 @@ class ReplicationSnapshotImpl(
 	ServerSchedule schedules) implements ReplicationSnapshot {
 
 	Int count = 0;
-	Int update = 0;
+	Int nupdates = 0;
 	
 	//cps increments after each time 
     //changes to be made to item store
@@ -1187,7 +1187,7 @@ class ReplicationSnapshotImpl(
 			
 			updated = this.db.refresh(makeChange);
 			if (updated) {
-				update = update + 1; //for debug
+				nupdates = nupdates + 1; //for debug
 				
 				this.createReplicationItems();
 				Set<ServerReplicationItem> titems = this.getItems();
