@@ -1401,25 +1401,25 @@ implements ServerDataBase, ClientDataBase {
 		return result;
 	}
 	
-	[Atomic] Bool refresh(Bool update) {
+	[Atomic] Bool refresh(Bool doupdate) {
 		count = count + 1;
 		Bool more = False;
 		
 		// advanced to the next check point;
 		// only if update if required
-		if (update) {
+		if (doupdate) {
 			more = this.advancedCheckPoint();
 		}
 		
 		// if update is not required 
 		// then update the filestore of the current checkpoint
 		// else update the filestore of the next checkpoint
-		if (!update || more) {
+		if (!doupdate || more) {
 			Map<FileId,FileContent> updates = lookupUnsafe(db,ccp);
 			this.rootPath = updateDirWithContents(this.rootPath,updates);
 		}
 		
-		return (!update || more);
+		return (!doupdate || more);
 	}
 	
 	// Returns 0 if file not found.
