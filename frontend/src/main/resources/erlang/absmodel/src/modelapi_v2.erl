@@ -24,6 +24,7 @@ init(Req, _Opts) ->
                                              cowboy_req:parse_qs(Req),
                                              Req);
             <<"compile">> -> handle_compile_request(cowboy_req:parse_qs(Req), Req);
+            <<"redefine">> -> handle_redefine_request(cowboy_req:parse_qs(Req));
             <<"quit">> -> halt(0);              %sorry
             _ -> {404, <<"text/plain">>, <<"Not found">>}
         end,
@@ -203,6 +204,14 @@ handle_compile_request(_Params, Req) ->
                                  [{space, 1}, {indent, 2}]) }
             end
     end.
+
+handle_redefine_request(Params) ->
+    OldClass=binary_to_existing_atom(maps:get(original, Params), utf8),
+    NewClass=binary_to_existing_atom(maps:get(updated, Params), utf8),
+    cog_monitor:update_class_definition(OldClass, NewClass),
+    {200, <<"text/plain">>,
+     iolist_to_binary([<<"Success - redefined ">>, maps:get(original, Params),
+                       <<" to ">>, maps:get(updated, Params)])}.
 
 decode_parameters(URLParameters, ParamDecls, Body) ->
     %% TODO: There could be better error reporting here:
