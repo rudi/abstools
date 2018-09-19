@@ -24,6 +24,7 @@
 -export([protect_object_from_gc/1, unprotect_object_from_gc/1]).
 -export([get_all_method_info/1,has_interface/2]).
 -export([get_class_from_state/1,get_class_from_ref/1]).
+-export([set_class_in_state/2]).
 
 behaviour_info(callbacks) ->
     [{get_val_internal, 2},{set_val_internal,3},{init_internal,0}];
@@ -112,6 +113,10 @@ get_class_from_ref(O=#object{cog=Cog}) ->
 
 get_class_from_state(OState) ->
     element(2, OState).
+
+set_class_in_state(OState, NewClass) ->
+    [Record, _ | Attrs] = tuple_to_list(OState),
+    list_to_tuple([Record, NewClass | Attrs]).
 
 %%Internal
 

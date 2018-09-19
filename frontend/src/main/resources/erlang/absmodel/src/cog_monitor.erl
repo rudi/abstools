@@ -24,6 +24,8 @@
 %% the HTTP api
 -export([register_object_with_http_name/2,lookup_object_from_http_name/1,list_registered_http_names/0,list_registered_http_objects/0,increase_clock_limit/1]).
 
+-export([module_for_class/1,update_class_definition/2]).
+
 %% gen_server interface
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -49,6 +51,8 @@
                registered_objects, % Objects registered in HTTP API. binary |-> #object{}
                keepalive_after_clock_limit % Flag whether we kill all objects after clock limit has been reached
                                            % (false when HTTP API is active)
+
+               , class_table=#{} % Map from original (and intermediate) to current class module; filled by update_class_definition/2
               }).
 %%External function
 
@@ -127,6 +131,12 @@ list_registered_http_objects() ->
 increase_clock_limit(Amount) ->
     gen_server:call({global, cog_monitor}, {clock_limit_increased, Amount}, infinity).
 
+module_for_class(Class) ->
+    gen_server:call({global, cog_monitor}, {module_for_class, Class}).
+
+update_class_definition(OldClass, NewClass) ->
+    gen_server:call({global, cog_monitor}, {update_class_definition, OldClass, NewClass}).
+
 %% gen_server callbacks
 
 %%The callback gets as parameter the pid of the runtime process, which waits for all cogs to be idle
@@ -139,7 +149,8 @@ init([Main,Keepalive])->
                dcs=[],
                active_before_next_clock=ordsets:new(),
                registered_objects=maps:new(),
-               keepalive_after_clock_limit=Keepalive}}.
+               keepalive_after_clock_limit=Keepalive,
+               class_table=#{}}}.
 
 handle_call({keep_alive, Class}, _From, State=#state{keepalive_after_clock_limit=KeepAlive}) ->
     %% Do not garbage-collect DeploymentComponent objects when we do
@@ -197,6 +208,19 @@ handle_call({clock_limit_increased, Amount}, From, State) ->
                  State
          end,
     {reply, {Success, Newlimit}, S1};
+handle_call({module_for_class, Class}, _From, State=#state{class_table=Classes}) ->
+    {reply, maps:get(Class, Classes, Class), State};
+handle_call({update_class_definition, OldClass, NewClass}, _From,
+            State=#state{class_table=Classes,active=Active,idle=Idle,blocked=Blocked}) ->
+    NewClasses = maps:map(fun(_From, To) ->
+                                  case To of
+                                      OldClass -> NewClass;
+                                      _ -> To
+                                  end
+                          end,
+                          Classes),
+    gb_sets:fold(fun (Cog, _Acc) -> cog:update_class_definition(Cog, OldClass, NewClass) end, ok, gb_sets:union([Active,Idle,Blocked])),
+    {reply, ok, State#state{class_table=NewClasses#{OldClass => NewClass}}};
 handle_call({cog,Cog,unblocked}, _From, State=#state{active=A,blocked=B})->
     A1=gb_sets:add_element(Cog,A),
     B1=gb_sets:del_element(Cog,B),

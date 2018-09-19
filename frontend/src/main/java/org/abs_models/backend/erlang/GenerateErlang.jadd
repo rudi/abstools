@@ -347,7 +347,7 @@ aspect GenerateErlang {
           ecs.print(ErlUtil.getName(decl.getModuleDecl())+ "_funs:f_" + decl.getName());
           ecs.print("/" + (decl.getNumParam() + 2));
       }
-      ecs.format("),%s,",className);
+      ecs.format("),cog_monitor:module_for_class(%s),",className);
       ErlUtil.buildParams(ecs,getParams(),vars,true);
       ecs.print(",Cog,");
       ecs.print(vars.toStack());

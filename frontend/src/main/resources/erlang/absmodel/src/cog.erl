@@ -2,6 +2,7 @@
 -module(cog).
 -export([start/0,start/1,start/2,add_main_task/3,add_task/7]).
 -export([new_object/3,activate_object/2,object_dead/2,object_state_changed/3,get_object_state/2,sync_task_with_object/3]).
+-export([update_class_definition/3]).
 -export([get_dc/2]).
 -export([process_is_runnable/2,
          process_is_blocked/3, process_is_blocked_for_gc/3,
@@ -148,6 +149,11 @@ sync_task_with_object(#cog{ref=Cog}, #object{ref=Oid}, TaskRef) ->
     %% TaskRef when we switch to active
     gen_statem:call(Cog, {sync_task_with_object, Oid, TaskRef}).
 
+update_class_definition(#cog{ref=CogRef}, OldClass, NewClass) ->
+    update_class_definition(CogRef, OldClass, NewClass);
+update_class_definition(CogRef, OldClass, NewClass) ->
+    gen_statem:cast(CogRef, {update_class_definition, OldClass, NewClass}).
+
 get_dc(#cog{ref=Cog}, #object{ref=Oid}) ->
     gen_statem:call(Cog, {get_dc, Oid});
 get_dc(#cog{ref=Cog}, Oid) ->
@@ -239,12 +245,32 @@ handle_cast({new_dc, Oid}, _StateName, Data=#data{dcs=DCs}) ->
     DC=dc:new(self(), Oid),
     {keep_state, Data#data{dcs=maps:put(Oid, DC, DCs)}};
 handle_cast({update_object_state, Oid, ObjectState}, _StateName, Data=#data{object_states=ObjectStates}) ->
-    {keep_state, Data#data{object_states=maps:put(Oid, ObjectState, ObjectStates)}};
+    Class=object:get_class_from_state(ObjectState),
+    NewClass=cog_monitor:module_for_class(Class),
+    NewState=case NewClass of
+               Class -> ObjectState;
+               _ -> object:set_class_in_state(ObjectState, NewClass)
+           end,
+    {keep_state, Data#data{object_states=maps:put(Oid, NewState, ObjectStates)}};
 handle_cast({activate_object, Oid}, _StateName, Data=#data{fresh_objects=FreshObjects}) ->
     lists:foreach(fun(X)-> X ! active end,maps:get(Oid, FreshObjects, [])),
     {keep_state, Data#data{fresh_objects=maps:remove(Oid, FreshObjects)}};
 handle_cast({object_dead, Oid}, _StateName, Data=#data{object_states=ObjectStates}) ->
     {keep_state, Data#data{object_states=maps:remove(Oid, ObjectStates)}};
+handle_cast({update_class_definition, OldClass, NewClass}, _StateName,
+            Data=#data{object_states=ObjectStates}) ->
+    {keep_state,
+     Data#data{
+       object_states=maps:map(
+                       fun(_Oid, State) ->
+                               case object:get_class_from_state(State) of
+                                   OldClass ->
+                                       object:set_class_in_state(State, NewClass);
+                                   _ ->
+                                       State
+                               end
+                       end,
+                       ObjectStates)}};
 handle_cast(_Event, _StateName, Data) ->
     {stop, not_supported, Data}.
 
