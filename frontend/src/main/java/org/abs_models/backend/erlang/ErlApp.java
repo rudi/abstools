@@ -277,4 +277,25 @@ public class ErlApp {
         s.close();
     }
 
+    public void generateUpdateScripts(Model m) throws FileNotFoundException, UnsupportedEncodingException {
+        for (CompilationUnit u : m.getCompilationUnits()) {
+            for (DynamicUpdateDecl d : u.getDynamicUpdateDecls()) {
+                CodeStream s = new CodeStream(new File(destDir, "load" + d.getName() + ".sh"));
+                s.println("#!/bin/bash");
+                s.println("PORTNR=$1");
+                for (DynamicModifier mod : d.getDynamicModifiers()) {
+                    ClassDecl nc = null;
+                    if (mod instanceof DynamicAddClassModifier) {
+                        nc = ((DynamicAddClassModifier)mod).getClassDecl();
+                    } else if (mod instanceof DynamicModifyClassModifier) {
+                        nc = ((DynamicModifyClassModifier)mod).getClassDecl();
+                    }
+                    String classFileName = "class" + d.getName() + nc.getName();
+                    s.println("curl -X POST -H \"Content-Type:application/json\" --data-binary @" + classFileName + " http://localhost:$PORTNR/compile");
+                    CodeStream f = new CodeStream(new File(destDir, classFileName));
+                    // TODO generate class into f, using ClassGenerator static methods
+                }
+            }
+        }
+    }
 }

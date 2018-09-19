@@ -38,6 +38,7 @@ aspect GenerateErlang {
             }
         }
         ea.generateDataConstructorInfo(this);
+        ea.generateUpdateScripts(this);
     }
 
   public void Decl.generateErlangCode(ErlApp ea) throws IOException {
