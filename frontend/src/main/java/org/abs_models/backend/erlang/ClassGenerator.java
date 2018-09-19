@@ -37,18 +37,20 @@ public class ClassGenerator {
         ecs = ea.createSourceFile(modName);
         hasFields = classDecl.getParams().hasChildren() || classDecl.getFields().hasChildren();
         try {
-            generateHeader();
-            generateExports();
-            generateDataAccess();
-            generateConstructor();
-            generateRecoverHandler();
-            generateMethods();
+            generateHeader(ecs, classDecl, modName);
+            generateExports(ecs, classDecl);
+            generateDataAccess(ecs, classDecl, modName);
+            generateConstructor(ecs, classDecl, modName);
+            generateRecoverHandler(ecs, classDecl, modName);
+            generateMethods(ecs, classDecl, modName);
         } finally {
             ecs.close();
         }
     }
 
-    private void generateHeader() {
+    static void generateHeader(CodeStream ecs, ClassDecl classDecl, String modName) {
+        boolean hasFields = classDecl.getParams().hasChildren()
+            || classDecl.getFields().hasChildren();
         ecs.pf("-module(%s).", modName);
         ecs.println("-include_lib(\"../include/abs_types.hrl\").");
         if (hasFields) {
@@ -56,13 +58,13 @@ public class ClassGenerator {
         }
     }
 
-    private void generateMethods() {
+    static void generateMethods(CodeStream ecs, ClassDecl classDecl, String modName) {
         ecs.println("%% --- Methods\n");
         for (MethodImpl m : classDecl.getMethodList()) {
             ecs.pf(" %%%% %s:%s", m.getFileName(), m.getStartLine());
             MethodSig ms = m.getMethodSig();
             ecs.pf(" %%%% %s:%s", m.getFileName(), m.getStartLine());
-            ErlUtil.functionHeader(ecs, "m_" + ms.getName(), generatorClassMatcher(), ms.getParamList());
+            ErlUtil.functionHeader(ecs, "m_" + ms.getName(), generatorClassMatcher(modName), ms.getParamList());
             ecs.println("C=(get(this))#state.class,");
             ecs.print("put(vars, #{ 'this' => O");
             for (ParamDecl p : ms.getParamList()) {
@@ -102,9 +104,9 @@ public class ClassGenerator {
 
     }
 
-    private void generateConstructor() {
+    static void generateConstructor(CodeStream ecs, ClassDecl classDecl, String modName) {
         ecs.println("%% --- Constructor: field initializers and init block\n");
-        ErlUtil.functionHeaderParamsAsList(ecs, "init", generatorClassMatcher(), classDecl.getParamList(), Mask.none);
+        ErlUtil.functionHeaderParamsAsList(ecs, "init", generatorClassMatcher(modName), classDecl.getParamList(), Mask.none);
         ecs.println("C=(get(this))#state.class,");
         ecs.println("put(vars, #{}),");
         Vars vars = Vars.n();
@@ -138,7 +140,7 @@ public class ClassGenerator {
         ecs.decIndent();
     }
 
-    private void generateRecoverHandler() {
+    static void generateRecoverHandler(CodeStream ecs, ClassDecl classDecl, String modName) {
         if (classDecl.hasRecoverBranch()) {
             ecs.println("%% --- Recovery block\n");
             Vars vars = new Vars();
@@ -163,7 +165,7 @@ public class ClassGenerator {
                 branches.add(sw.toString());
                 vars.updateTemp(v);
             }
-            ErlUtil.functionHeader(ecs, "recover", ErlUtil.Mask.none, generatorClassMatcher(), "Exception");
+            ErlUtil.functionHeader(ecs, "recover", ErlUtil.Mask.none, generatorClassMatcher(modName), "Exception");
             ecs.println("C=(get(this))#state.class,");
             ecs.println("Stack = [],");
             ecs.println("Result=case Exception of ");
@@ -189,11 +191,13 @@ public class ClassGenerator {
         }
     }
 
-    private String generatorClassMatcher() {
+    private static String generatorClassMatcher(String modName) {
         return String.format("O=#object{ref=Ref,cog=Cog=#cog{ref=CogRef,dc=DC}}", modName);
     }
 
-    private void generateDataAccess() {
+    static void generateDataAccess(CodeStream ecs, ClassDecl classDecl, String modName) {
+        boolean hasFields = classDecl.getParams().hasChildren()
+            || classDecl.getFields().hasChildren();
         ecs.println("%% --- Internal state and low-level accessors\n");
         ecs.format("-record(state,{'class'=%s", modName);
         for (TypedVarOrFieldDecl f : Iterables.concat(classDecl.getParams(), classDecl.getFields())) {
@@ -254,7 +258,7 @@ public class ClassGenerator {
         ecs.decIndent();
     }
 
-    private void generateParameterDescription(Type paramtype) {
+    static void generateParameterDescription(CodeStream ecs, Type paramtype) {
         ecs.print("<<\"" + paramtype.getQualifiedName() + "\">>,");
         ecs.print(" {");
         if (paramtype.isDataType()) {
@@ -264,14 +268,14 @@ public class ClassGenerator {
                 for (Type typearg : paramdatatype.getTypeArgs()) {
                     ecs.print(interp);
                     interp = ", ";
-                    generateParameterDescription(typearg);
+                    generateParameterDescription(ecs, typearg);
                 }
             }
         }
         ecs.print(" }");
     }
 
-    private void generateExports() {
+    static void generateExports(CodeStream ecs, ClassDecl classDecl) {
         ecs.println("-export([get_val_internal/2,set_val_internal/3,init_internal/0,get_state_for_modelapi/1,implemented_interfaces/0,exported/0]).");
         ecs.println("-compile(export_all).");
         ecs.println();
@@ -326,7 +330,7 @@ public class ClassGenerator {
                     ecs.print("{ ");
                     ecs.print("<<\"" + p.getName() + "\">>, ");
                     ecs.print("<<\"" + p.getType().toString() + "\">>, ");
-                    generateParameterDescription(p.getType());
+                    generateParameterDescription(ecs, p.getType());
                     ecs.print(" }");
                 }
                 ecs.print("] ");
