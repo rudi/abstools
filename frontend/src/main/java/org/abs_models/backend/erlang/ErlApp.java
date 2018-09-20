@@ -4,11 +4,7 @@
  */
 package org.abs_models.backend.erlang;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.JarURLConnection;
 import java.net.URLConnection;
 import java.util.Collections;
@@ -30,6 +26,7 @@ import org.abs_models.common.CompilerUtils;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
+import org.apache.commons.io.IOUtils;
 
 /**
  * Represents a to be generate Erlang application.
@@ -277,7 +274,7 @@ public class ErlApp {
         s.close();
     }
 
-    public void generateUpdateScripts(Model m) throws FileNotFoundException, UnsupportedEncodingException {
+    public void generateUpdateScripts(Model m) throws IOException {
         for (CompilationUnit u : m.getCompilationUnits()) {
             for (DynamicUpdateDecl d : u.getDynamicUpdateDecls()) {
                 CodeStream s = new CodeStream(new File(destDir, "load" + d.getName() + ".sh"));
@@ -289,11 +286,35 @@ public class ErlApp {
                         nc = ((DynamicAddClassModifier)mod).getClassDecl();
                     } else if (mod instanceof DynamicModifyClassModifier) {
                         nc = ((DynamicModifyClassModifier)mod).getClassDecl();
+                    } else {
+                        continue;
                     }
-                    String classFileName = "class" + d.getName() + nc.getName();
-                    s.println("curl -X POST -H \"Content-Type:application/json\" --data-binary @" + classFileName + " http://localhost:$PORTNR/compile");
-                    CodeStream f = new CodeStream(new File(destDir, classFileName));
-                    // TODO generate class into f, using ClassGenerator static methods
+                    String modName = ErlUtil.getName(nc) + "_" + d.getName();
+                    s.println("curl -X POST -H \"Content-Type:application/json\" --data-binary @" + modName + " http://localhost:$PORTNR/compile");
+                    s.println("curl http://localhost:$PORTNR/redefine?original=" + ErlUtil.getName(nc) + "\\&updated=" + modName);
+                    CodeStream f = new CodeStream(new File(destDir, modName));
+
+                    boolean hasFields = nc.getParams().hasChildren()
+                        || nc.getFields().hasChildren();
+                    f.pf("-module(%s).", modName);
+                    URLConnection resource = getClass().getResource("").openConnection();
+                    if (resource instanceof JarURLConnection) {
+                        InputStream is = ClassLoader.getSystemResourceAsStream(JAR_PATH + "absmodel/include/abs_types.hrl");
+                        IOUtils.copy(is, f);
+                    } else {
+                        File file = new File("src/main/resources/erlang/absmodel/include/abs_types.hrl");
+                        IOUtils.copy(new FileInputStream(file), f);
+                    }
+                    //f.println("-include_lib(\"../include/abs_types.hrl\").");
+                    if (hasFields) {
+                        f.println("-behaviour(object).");
+                    }
+                    ClassGenerator.generateExports(f, nc);
+                    ClassGenerator.generateDataAccess(f, nc, modName);
+                    ClassGenerator.generateConstructor(f, nc, modName);
+                    ClassGenerator.generateRecoverHandler(f, nc, modName);
+                    ClassGenerator.generateMethods(f, nc, modName);
+                    f.close();
                 }
             }
         }

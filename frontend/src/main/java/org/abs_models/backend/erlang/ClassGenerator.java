@@ -64,7 +64,7 @@ public class ClassGenerator {
             ecs.pf(" %%%% %s:%s", m.getFileName(), m.getStartLine());
             MethodSig ms = m.getMethodSig();
             ecs.pf(" %%%% %s:%s", m.getFileName(), m.getStartLine());
-            ErlUtil.functionHeader(ecs, "m_" + ms.getName(), generatorClassMatcher(modName), ms.getParamList());
+            ErlUtil.functionHeader(ecs, "m_" + ms.getName(), generatorClassMatcher(), ms.getParamList());
             ecs.println("C=(get(this))#state.class,");
             ecs.print("put(vars, #{ 'this' => O");
             for (ParamDecl p : ms.getParamList()) {
@@ -106,7 +106,7 @@ public class ClassGenerator {
 
     static void generateConstructor(CodeStream ecs, ClassDecl classDecl, String modName) {
         ecs.println("%% --- Constructor: field initializers and init block\n");
-        ErlUtil.functionHeaderParamsAsList(ecs, "init", generatorClassMatcher(modName), classDecl.getParamList(), Mask.none);
+        ErlUtil.functionHeaderParamsAsList(ecs, "init", generatorClassMatcher(), classDecl.getParamList(), Mask.none);
         ecs.println("C=(get(this))#state.class,");
         ecs.println("put(vars, #{}),");
         Vars vars = Vars.n();
@@ -165,7 +165,7 @@ public class ClassGenerator {
                 branches.add(sw.toString());
                 vars.updateTemp(v);
             }
-            ErlUtil.functionHeader(ecs, "recover", ErlUtil.Mask.none, generatorClassMatcher(modName), "Exception");
+            ErlUtil.functionHeader(ecs, "recover", ErlUtil.Mask.none, generatorClassMatcher(), "Exception");
             ecs.println("C=(get(this))#state.class,");
             ecs.println("Stack = [],");
             ecs.println("Result=case Exception of ");
