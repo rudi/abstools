@@ -206,12 +206,13 @@ handle_compile_request(_Params, Req) ->
     end.
 
 handle_redefine_request(Params) ->
-    OldClass=binary_to_existing_atom(maps:get(original, Params), utf8),
-    NewClass=binary_to_existing_atom(maps:get(updated, Params), utf8),
+    ParamMap=maps:from_list(Params),
+    OldClass=binary_to_existing_atom(maps:get(<<"original">>, ParamMap), utf8),
+    NewClass=binary_to_existing_atom(maps:get(<<"updated">>, ParamMap), utf8),
     cog_monitor:update_class_definition(OldClass, NewClass),
     {200, <<"text/plain">>,
-     iolist_to_binary([<<"Success - redefined ">>, maps:get(original, Params),
-                       <<" to ">>, maps:get(updated, Params)])}.
+     iolist_to_binary([<<"Success - redefined ">>, maps:get(<<"original">>, ParamMap),
+                       <<" to ">>, maps:get(<<"updated">>, ParamMap)])}.
 
 decode_parameters(URLParameters, ParamDecls, Body) ->
     %% TODO: There could be better error reporting here:
