@@ -163,7 +163,8 @@ aspect GenerateErlang {
        ecs.println("C = none,");
        ecs.println("Ref = null, % avoid self-call branch in synccall code");
        ecs.println("O = #object{ref=null,cog=Cog},");
-       ecs.println("put(this, {}),");
+       // second element of an object's state is its class
+       ecs.println("put(this, {state, none}),");
        // Create a default deployment component.
        ecs.println("%% FIXME: thisDC() won't work in main block (DC should be in Cog state)");
        ecs.println("DC = object:new(cog:start(),class_ABS_DC_DeploymentComponent, [<<\"Initial DC\">>,dataEmptyMap,[]],Cog,[O]),");
