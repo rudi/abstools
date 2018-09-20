@@ -11,7 +11,7 @@ Model ::= CompilationUnit* /Product*/ ;
 
 CompilationUnit ::= <Name> ModuleDecl* DynamicUpdateDecl* DeltaDecl* UpdateDecl* [ProductLine] ProductDecl* FeatureDecl* FExt*;
 ModuleDecl ::= <Name> Export* Import* Decl* [Block:MainBlock];
-DynamicUpdateDecl ::= <Name> [DeltaAccess] DynamicModifier* ;
+DynamicUpdateDecl ::= <Name> DeltaAccess DynamicModifier* ;
 DeltaDecl ::= <Name> Param:DeltaParamDecl* DeltaAccess* ModuleModifier* ;
 UpdateDecl ::= <Name> ObjectUpdate* ;
 

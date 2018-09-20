@@ -7,6 +7,8 @@ aspect Model {
     inh Model ProductDecl.getModel();
     inh Model ProductName.getModel();
 
+    inh Model DynamicUpdateDecl.getModel();
+
     inh Model Modifier.getModel();
     eq ModifyClassModifier.getModifier().getModel() = this.getDelta().getModel();
     eq ModifyInterfaceModifier.getMethodSigModifier().getModel() = this.getDelta().getModel();
@@ -103,6 +105,9 @@ aspect Deltas {
     // type information etc.
     eq CompilationUnit.getModuleDecl().amInCoreAbs() = true;
     eq CompilationUnit.getDeltaDecl().amInCoreAbs() = false;
+    // True while we demand complete class definitions in dynamic updates --
+    // will be false later
+    eq CompilationUnit.getDynamicUpdateDecl().amInCoreAbs() = true;
     eq CompilationUnit.getUpdateDecl().amInCoreAbs() = false;
     eq CompilationUnit.getProductLine().amInCoreAbs() = false;
     eq CompilationUnit.getProductDecl().amInCoreAbs() = false;
@@ -115,3 +120,7 @@ aspect Deltas {
     inh boolean ParFnApp.amInCoreAbs();
 }
 
+
+// Local Variables:
+// mode: java
+// End:

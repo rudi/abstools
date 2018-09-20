@@ -220,6 +220,17 @@ aspect TypeResolution {
     eq AddDataTypeModifier.getDataTypeDecl().getModuleDecl() = findModule();
     eq ModifyDataTypeModifier.getDataTypeDecl().getModuleDecl() = findModule();
 
+    eq DynamicUpdateDecl.getDynamicModifier().getModuleDecl() {
+        String moduleid = getDeltaAccess().getModuleName();
+        for (ModuleDecl module : getModel().getModuleDecls()) {
+            if (module.getName().equals(moduleid)) {
+                return module;
+            }
+        }
+        return null;
+        // TODO: catch / type-check for invalid "uses Module;" clause
+    }
+
     inh ModuleDecl Export.getModuleDecl();
     eq ModuleDecl.getExport().getModuleDecl() = this;
     eq AddExportModifier.getExport().getModuleDecl() = findModule();

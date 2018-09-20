@@ -308,7 +308,7 @@ trait_oper : 'removes' methodsig                    #TraitRemoveFragment
 trait_usage: 'uses' trait_expr ';' ;
 
 dynamic_update_decl : 'update' TYPE_IDENTIFIER ';'
-        delta_access?
+        delta_access
         dynamic_modifier*
     ;
 

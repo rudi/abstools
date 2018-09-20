@@ -836,7 +836,7 @@ public class CreateJastAddASTListener extends ABSBaseListener {
     // Dynamic updates
     @Override public void exitDynamic_update_decl(ABSParser.Dynamic_update_declContext ctx) {
         setV(ctx, new DynamicUpdateDecl(ctx.TYPE_IDENTIFIER().getText(),
-                                        o(ctx.delta_access()),
+                                        v(ctx.delta_access()),
                                         l(ctx.dynamic_modifier())));
     }
 

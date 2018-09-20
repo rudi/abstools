@@ -191,8 +191,8 @@ public class ClassGenerator {
         }
     }
 
-    private static String generatorClassMatcher(String modName) {
-        return String.format("O=#object{ref=Ref,cog=Cog=#cog{ref=CogRef,dc=DC}}", modName);
+    private static String generatorClassMatcher() {
+        return "O=#object{ref=Ref,cog=Cog=#cog{ref=CogRef,dc=DC}}";
     }
 
     static void generateDataAccess(CodeStream ecs, ClassDecl classDecl, String modName) {

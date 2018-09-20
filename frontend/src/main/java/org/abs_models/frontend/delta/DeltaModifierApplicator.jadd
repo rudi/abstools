@@ -425,3 +425,7 @@ aspect DeltaModifierApplicator {
 
 
 }
+
+// Local Variables:
+// mode: java
+// End:
