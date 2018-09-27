@@ -33,6 +33,10 @@ aspect ErrorCheck {
 
   }
 
+  void DynamicUpdateDecl.collectErrors(SemanticConditionList c) {
+      // TODO: we skip type-checking this in the prototype
+  }
+
   // add error for cyclic interface inheritance hierarchy
   public void InterfaceDecl.collectErrors(SemanticConditionList c) {
     super.collectErrors(c);
