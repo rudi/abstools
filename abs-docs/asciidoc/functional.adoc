@@ -45,6 +45,8 @@ multiple times without influencing the execution semantics.
  {vbar} _IfExp_ +
  {vbar} _CaseExp_ +
  {vbar} _OperatorExp_ +
+ {vbar} _TypeCheckExp_ +
+ {vbar} _TypeCastExp_ +
  {vbar} `(` _PureExp_ `)`
 |====
 
@@ -227,7 +229,7 @@ function call expressions, but have an additional prepended set of arguments.
 |  _ParFnAppParam_ ::= | _Identifier_ +
                   {vbar} _AnonymousFunction_
 
-|  _AnonymousFunction_ ::= | `(` [ _Type_ _SimpleIdentifier_ { `,` _Type_ _SimpleIdentifier_  } ]  `)` `+++=>+++` _PureExp_ `;`
+|  _AnonymousFunction_ ::= | `(` [ _Type_ _SimpleIdentifier_ { `,` _Type_ _SimpleIdentifier_  } ]  `)` `+++=>+++` _PureExp_
 |====
 
 [source]
@@ -289,6 +291,7 @@ There are four different kinds of patterns available in ABS:
                  {vbar} __ConstrPattern__
 | _ConstrPattern_ ::= | _TypeIdentifier_ [ `(` [ _Pattern_ { `,` _Pattern_ }  ] `)` ]
 |====
+
 
 ===== The Variable Pattern
 
@@ -407,6 +410,71 @@ expression.  A branch (a pattern and its expression) is type-correct if its
 pattern and its right-hand side expression are type-correct.  A pattern is
 type-correct if it can match the corresponding case expression.
 
+
+
+[[typecheck-expression]]
+==== The Type-Check Expression
+
+Variables pointing to objects are typed by interface, which means that the
+concrete class of the referenced object might support more methods than can be
+called through the reference.  The type-check expression checks if an object
+implements the given interface.
+
+[frame=topbot, options="noheader", grid=none, caption="", cols=">30,<70"]
+.Syntax
+|====
+| _TypeCheckExp_ ::= | _PureExp_ `implements` _TypeIdentifier_
+|====
+
+[source]
+.Example
+----
+interface I {}
+interface J {}
+class C implements I, J {}
+{
+  I o = new C();
+  if (o implements J) {  // evaluates to True
+    println("o is a J");
+  }
+}
+----
+
+
+
+
+[[typecast-expression]]
+==== The Type-Cast Expression
+
+Variables pointing to objects are typed by interface, which means that
+the concrete class of the referenced object might support more methods
+than can be called through the reference.  The type-cast expression
+returns a reference of type `I` to the same object if it implements
+the given interface `I`, or `null` otherwise.
+
+[frame=topbot, options="noheader", grid=none, caption="", cols=">30,<70"]
+.Syntax
+|====
+| _TypeCastExp_ ::= | _PureExp_ `as` _TypeIdentifier_
+|====
+
+[source]
+.Example
+----
+interface I {}
+interface J {}
+class C implements I, J {}
+class D implements I {}
+{
+  I o = new C();
+  J j = o as J;  // j is an alias of o, with type J
+  I o2 = new D();
+  J j2 = o2 as J; // j2 is null
+}
+----
+
+
+
 [[sec:side-effect-expressions]]
 === Expressions with Side Effects
 
@@ -423,7 +491,8 @@ language.
 | _EffExp_ ::= | _NewExp_ +
                  {vbar} _SyncCall_ +
                  {vbar} _AsyncCall_ +
-                 {vbar} _GetExp_
+                 {vbar} _GetExp_ +
+                 {vbar} _AwaitExp_
 |====
 
 ==== New Expression
@@ -463,7 +532,7 @@ type, a method name declared in that interface, and a list of argument expressio
 [frame=topbot, options="noheader", grid=none, caption="", cols=">30,<70"]
 .Syntax
 |====
-| _SyncCall_ ::= | _PureExp_ `.` _SimpleIdentifier_ `(` _PureExp_ { `,` _PureExp_ } `)`
+| _SyncCall_ ::= | _PureExp_ `.` _SimpleIdentifier_ `(` [ _PureExp_ { `,` _PureExp_ } ] `)`
 |====
 
 [source]
@@ -496,7 +565,7 @@ argument expressions.
 [frame=topbot, options="noheader", grid=none, caption="", cols=">30,<70"]
 .Syntax
 |====
-| _AsyncCall_ ::= | _PureExp_ `!` _SimpleIdentifier_ `(` _PureExp_ { `,` _PureExp_ }  `)`
+| _AsyncCall_ ::= | _PureExp_ `!` _SimpleIdentifier_ `(` [ _PureExp_ { `,` _PureExp_ } ] `)`
 |====
 
 An asynchronous method call creates a new task in the COG that contains the
@@ -746,7 +815,7 @@ calls to partially defined functions.
 [frame=topbot, options="noheader", grid=none, caption="", cols=">30,<70"]
 .Syntax
 |====
-| _AnonymousFunction_  ::= | `(` [ _Type_ _SimpleIdentifier_ { `,` _Type_ _SimpleIdentifier_  } ]  `)` `=>` _PureExp_ `;`
+| _AnonymousFunction_  ::= | `(` [ _Type_ _SimpleIdentifier_ { `,` _Type_ _SimpleIdentifier_  } ]  `)` `=>` _PureExp_
 |====
 
 An anonymous function specifies a number of parameters and an expression that

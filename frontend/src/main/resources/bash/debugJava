@@ -1,0 +1,11 @@
+#!/bin/bash
+
+PROGNAME="$(readlink $0)"
+if [[ -z $PROGNAME ]] ; then
+    PROGNAME="$0"
+fi
+BASEDIR="$(dirname $PROGNAME)/../.."
+
+java -cp $BASEDIR/bin:$1 -Dabs.debug=true -Dabs.loglevel=finest -Dabs.systemobserver=GraphicalDebugger -Dabs.totalscheduler=InteractiveScheduler $2.Main
+
+
