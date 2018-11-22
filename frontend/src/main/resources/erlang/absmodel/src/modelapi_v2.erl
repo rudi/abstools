@@ -20,6 +20,7 @@ init(Req, _Opts) ->
             <<"dcs">> -> handle_dcs();
             <<"o">> -> handle_object_query(cowboy_req:path_info(Req));
             <<"static_dcs">> -> handle_static_dcs(cowboy_req:path_info(Req));
+            <<"cog_history">> -> handle_cog_history(cowboy_req:path_info(Req));
             <<"call">> -> handle_object_call(cowboy_req:path_info(Req),
                                              cowboy_req:parse_qs(Req),
                                              Req);
@@ -318,6 +319,9 @@ get_statistics_json() ->
 handle_static_dcs([]) ->
     {200, <<"text/plain">> , get_statistics() }.
 
+handle_cog_history([]) ->
+    {200, <<"application/json">>,
+     jsx:encode(lists:reverse(cog_monitor:get_cog_history())) }.
 
 get_statistics() ->
     DCs = cog_monitor:get_dcs(),

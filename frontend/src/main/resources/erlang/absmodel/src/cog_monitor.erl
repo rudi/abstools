@@ -22,7 +22,7 @@
 -export([new_dc/1, dc_died/1, get_dcs/0]).
 
 %% the HTTP api
--export([register_object_with_http_name/2,lookup_object_from_http_name/1,list_registered_http_names/0,list_registered_http_objects/0,increase_clock_limit/1]).
+-export([register_object_with_http_name/2,lookup_object_from_http_name/1,list_registered_http_names/0,list_registered_http_objects/0,increase_clock_limit/1,get_cog_history/0]).
 
 %% gen_server interface
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -30,25 +30,37 @@
 %% Simulation ends when no cog is active or waiting for the clock / some
 %% resources.  Note that a cog is in either "active" or "idle" but can be in
 %% "active" and "blocked" at the same time.
--record(state,{main,            % this
-               active,          % non-idle cogs
-               idle,            % idle cogs
-               blocked,         % cogs with process blocked on future/resource
-               clock_waiting,   % [{Min,Max,Task,Cog}]: processes with their
-                                % cog waiting for simulated time to advance,
-                                % with minimum and maximum waiting time.
-                                % Ordered by ascending maximum waiting time
-                                % such that the Max element of the head of the
-                                % list is always MTE [Maximum Time Elapse]).
-               active_before_next_clock,
-                                % ordset of {Task, Cog} of tasks that need to
-                                % acknowledge waking up before next clock
-                                % advance
-
-               dcs,             % list of deployment components
-               registered_objects, % Objects registered in HTTP API. binary |-> #object{}
-               keepalive_after_clock_limit % Flag whether we kill all objects after clock limit has been reached
-                                           % (false when HTTP API is active)
+-record(state,{
+               %% this
+               main,
+               %% non-idle cogs
+               active=gb_sets:empty(),
+               %% idle cogs
+               idle=gb_sets:empty(),
+               %% cogs with process blocked on future/resource
+               blocked=gb_sets:empty(),
+               %% [{Min,Max,Task,Cog}]: processes with their cog
+               %% waiting for simulated time to advance, with minimum
+               %% and maximum waiting time.  Ordered by ascending
+               %% maximum waiting time such that the Max element of
+               %% the head of the list is always MTE [Maximum Time
+               %% Elapse]).
+               clock_waiting=[],
+               %% ordset of {Task, Cog} of tasks that need to
+               %% acknowledge waking up before next clock advance
+               active_before_next_clock=ordsets:new(),
+               %% list of deployment components
+               dcs=[],
+               %% Objects registered in HTTP API. binary |-> #object{}
+               registered_objects=maps:new(),
+               %% cogs that were active in previous clock cycle
+               active_cogs_in_last_cycle=gb_sets:empty(),
+               %% List of {active, total} counts for each time
+               %% interval, newest interval first
+               active_cogs_history=[],
+               %% Flag whether we kill all objects after clock limit
+               %% has been reached (false when HTTP API is active)
+               keepalive_after_clock_limit
               }).
 %%External function
 
@@ -130,19 +142,14 @@ list_registered_http_objects() ->
 increase_clock_limit(Amount) ->
     gen_server:call({global, cog_monitor}, {clock_limit_increased, Amount}, infinity).
 
+get_cog_history() ->
+    gen_server:call({global, cog_monitor}, cog_history).
+
 %% gen_server callbacks
 
 %%The callback gets as parameter the pid of the runtime process, which waits for all cogs to be idle
 init([Main,Keepalive])->
-    {ok,#state{main=Main,
-               active=gb_sets:empty(),
-               blocked=gb_sets:empty(),
-               idle=gb_sets:empty(),
-               clock_waiting=[],
-               dcs=[],
-               active_before_next_clock=ordsets:new(),
-               registered_objects=maps:new(),
-               keepalive_after_clock_limit=Keepalive}}.
+    {ok,#state{main=Main, keepalive_after_clock_limit=Keepalive}}.
 
 handle_call({keep_alive, Class}, _From, State=#state{keepalive_after_clock_limit=KeepAlive}) ->
     %% Do not garbage-collect DeploymentComponent objects when we do
@@ -158,10 +165,11 @@ handle_call({keep_alive, Class}, _From, State=#state{keepalive_after_clock_limit
 handle_call({cog,Cog,new}, _From, State=#state{idle=I})->
     I1=gb_sets:add_element(Cog,I),
     {reply, ok, State#state{idle=I1}};
-handle_call({cog,Cog,active}, _From, State=#state{active=A,idle=I})->
+handle_call({cog,Cog,active}, _From, State=#state{active=A,idle=I,active_cogs_in_last_cycle=AllActive})->
     A1=gb_sets:add_element(Cog,A),
     I1=gb_sets:del_element(Cog,I),
-    {reply, ok, State#state{active=A1,idle=I1}};
+    AllActive1=gb_sets:add_element(Cog, AllActive),
+    {reply, ok, State#state{active=A1,idle=I1,active_cogs_in_last_cycle=AllActive1}};
 handle_call({cog,Cog,idle}, From, State=#state{active=A,idle=I})->
     A1=gb_sets:del_element(Cog,A),
     I1=gb_sets:add_element(Cog,I),
@@ -200,6 +208,8 @@ handle_call({clock_limit_increased, Amount}, From, State) ->
                  State
          end,
     {reply, {Success, Newlimit}, S1};
+handle_call(cog_history, From, State=#state{active_cogs_history=History}) ->
+    {reply, History, State};
 handle_call({cog,Cog,unblocked}, _From, State=#state{active=A,blocked=B})->
     A1=gb_sets:add_element(Cog,A),
     B1=gb_sets:del_element(Cog,B),
@@ -306,7 +316,8 @@ can_clock_advance(_OldState=#state{active=A, blocked=B, active_before_next_clock
     (ordsets:size(ABNC1) == 0) andalso ((not Old_idle and All_idle)
                                         orelse (Old_idle and All_idle and (ordsets:size(ABNC) > 0))) .
 
-advance_clock_or_terminate(State=#state{main=M,active=A,clock_waiting=C,dcs=DCs,keepalive_after_clock_limit=Keepalive}) ->
+advance_clock_or_terminate(State=#state{main=M,active=A,idle=I,clock_waiting=C,dcs=DCs,keepalive_after_clock_limit=Keepalive,
+                                        active_cogs_in_last_cycle=Active,active_cogs_history=History}) ->
     case C of
         [] ->
             case Keepalive of
@@ -328,14 +339,21 @@ advance_clock_or_terminate(State=#state{main=M,active=A,clock_waiting=C,dcs=DCs,
             Clockresult=clock:advance(Delta),
             case Clockresult of
                 {ok, _} ->
+                    Cogs=gb_sets:size(A) + gb_sets:size(I),
+                    ActiveCogs=gb_sets:size(Active),
                     lists:foreach(fun(DC) -> dc:update(DC, Delta) end, DCs),
                     {A1,C1}=lists:unzip(
                               lists:map(
                                 fun(I) -> decrease_or_wakeup(MTE, I) end,
                                 C)),
                     State#state{clock_waiting=lists:flatten(C1),
-                                active_before_next_clock=ordsets:from_list(lists:flatten(A1))};
+                                active_before_next_clock=ordsets:from_list(lists:flatten(A1)),
+                                active_cogs_in_last_cycle=gb_sets:new(),
+                                %% FIXME: for larger deltas, append some {0, Cogs} elements as well
+                                active_cogs_history=[[ActiveCogs, Cogs] | History]};
                 {limit_reached, _} ->
+                    %% FIXME: advance for the amount returned by the
+                    %% clock (will always be smaller than Delta)
                     influxdb:flush(),
                     case Keepalive of
                         false ->

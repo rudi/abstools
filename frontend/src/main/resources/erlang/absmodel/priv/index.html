@@ -25,6 +25,89 @@
 
   <script type='text/javascript'>
     'use strict';
+    function generateCogHistoryGraph(container_div_id, coghistorydata) {
+        const container_div = $(container_div_id);
+        const size = { x: 900, y: 350 };
+        const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+        const graph_size = { x: size.x - margin.left - margin.right,
+                             y: size.y - margin.top - margin.bottom };
+        
+
+
+        const svg_id = 'cogsvg';
+        const clip_id = 'cogclip';
+        const value_id = 'cogvalue';
+        const total_id = 'cogtotal';
+        container_div.append('<h3>Active / total cogs in each time interval</h3>');
+        container_div.append(`<svg id=${svg_id} width=${size.x} height=${size.y}></svg>`);
+        const svg = d3.select('#' + svg_id);
+        svg.append("defs").append("clipPath")
+            .attr("id", clip_id)
+            .append("rect")
+            .attr("width", graph_size.x)
+            .attr("height", graph_size.y);
+        const graph = svg.append("g")
+              .attr("transform", `translate(${margin.left}, ${margin.top})`);
+        const x = d3.scaleLinear()
+              .domain([0, coghistorydata.length])
+              .range([0, graph_size.x]);
+        const xaxis = d3.axisBottom(x);
+        const y = d3.scaleLinear()
+              .domain([0, d3.max(coghistorydata, d => d[1])])
+              .range([graph_size.y, 0]);
+        const valueLineGenerator = d3.line()
+              .curve(d3.curveStepAfter)
+              .x((d, i) => x(i))
+              .y(d => Math.trunc(y(d[0])));
+        graph.append("g")
+            .attr("transform", `translate(0, ${graph_size.y})`)
+            .attr("class", "axis axis-x")
+            .call(xaxis)
+            .append("text")
+            .attr("fill", "#000")
+            .attr("x", graph_size.x)
+            .attr("dy", "2ex")
+            .attr("text-anchor", "end")
+            .text("Time");
+        graph.append("g")
+            .call(d3.axisLeft(y))
+            .append("text")
+            .attr("fill", "#000")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 6)
+            .attr("dy", "0.71em")
+            .attr("text-anchor", "end")
+            .text("Cogs active / total");
+        const mainarea = graph.append("g")
+              .attr("clip-path", `url(#${clip_id})`);
+        mainarea.append("path")
+            .datum(coghistorydata)
+            .attr("class", "cpu-values zoomable")
+            .attr("d", valueLineGenerator(coghistorydata));
+        const totalLineGenerator = d3.line()
+              .curve(d3.curveStepAfter)
+              .x((d, i) => x(i))
+              .y(d => Math.trunc(y(d[1])));
+        mainarea.append("path")
+            .datum(coghistorydata)
+            .attr("class", "cpu-totals zoomable")
+            .attr("d", totalLineGenerator(coghistorydata));
+        svg.call(d3.zoom()
+                 .scaleExtent([1, Infinity])
+                 .translateExtent([[margin.left, margin.top], [graph_size.x, graph_size.y]])
+                 .on("zoom", () => {
+                     let t = d3.event.transform;
+                     graph.selectAll(".zoomable")
+                         .attr("transform",
+                               `translate(${t.x}, 0) scale(${t.k}, 1)`);
+                     graph.select(".axis-x")
+                         .call(xaxis.scale(t.rescaleX(x)));
+                 }));
+
+
+
+    }
+
     function generateCpuGraphs(container_div_id, cpudata) {
         const container_div = $(container_div_id);
         const size = { x: 900, y: 350 };
@@ -112,9 +195,11 @@
     }
 
     $(document).ready(() => {
-        $.when($.getJSON("/dcs/cpu/data.json"))
-            .done(cpudata => {
-                generateCpuGraphs('#graphs', cpudata);
+        $.when($.getJSON("/dcs/cpu/data.json"),
+               $.getJSON("/cog_history"))
+            .done((cpudata, coghistory) => {
+                generateCogHistoryGraph('#graphs', coghistory[0]);
+                generateCpuGraphs('#graphs', cpudata[0]);
             });
     });
 
