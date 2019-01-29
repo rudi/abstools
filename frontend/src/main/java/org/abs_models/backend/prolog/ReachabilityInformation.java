@@ -147,12 +147,11 @@ public class ReachabilityInformation {
                 foundClass = true;
         }
         // FIXME: these two should be equivalent, so better use
-        assert ancestor == node.calcContextNode(ClassDecl.class);
+        assert ancestor == node.uppermostParentOfType(ClassDecl.class);
         return (ClassDecl) ancestor;
     }
 /**
- * returns true if there has been any change since the last time it was executed
- * @return
+ * @return true if there has been any change since the last time it was executed
  */
     public boolean changed() {
         if (changed) {

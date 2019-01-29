@@ -4,7 +4,12 @@
  */
 package org.abs_models.backend.erlang;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.JarURLConnection;
 import java.net.URLConnection;
 import java.util.Collections;
@@ -15,17 +20,16 @@ import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import org.abs_models.frontend.ast.*;
-import org.abs_models.frontend.parser.Main;
-import org.apache.commons.io.FileUtils;
-
-import org.abs_models.backend.common.CodeStream;
-import org.abs_models.backend.common.InternalBackendException;
-import org.abs_models.common.CompilerUtils;
-
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
+
+import org.abs_models.backend.common.CodeStream;
+import org.abs_models.backend.common.InternalBackendException;
+import org.abs_models.frontend.analyser.AnnotationHelper;
+import org.abs_models.frontend.ast.*;
+import org.abs_models.frontend.parser.Main;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
 /**
@@ -228,7 +232,7 @@ public class ErlApp {
                         boolean useToString = true;
                         for (ConstructorArg ca : c.getConstructorArgs()) {
                             List<Annotation> ann = ca.getTypeUse().getAnnotations();
-                            PureExp key = CompilerUtils.getAnnotationValueFromName(ann, "ABS.StdLib.HTTPName");
+                            PureExp key = AnnotationHelper.getAnnotationValueFromName(ann, "ABS.StdLib.HTTPName");
                             if (ca.hasSelectorName() || key != null) {
                                 useToString = false;
                             }
@@ -244,7 +248,7 @@ public class ErlApp {
                                 ConstructorArg ca = c.getConstructorArg(elem);
                                 List<Annotation> ann = ca.getTypeUse().getAnnotations();
                                 String key = null;
-                                PureExp keyann = CompilerUtils.getAnnotationValueFromName(ann, "ABS.StdLib.HTTPName");
+                                PureExp keyann = AnnotationHelper.getAnnotationValueFromName(ann, "ABS.StdLib.HTTPName");
                                 if (keyann != null && keyann instanceof StringLiteral) {
                                     key = ((StringLiteral)keyann).getContent();
                                 } else if (ca.hasSelectorName()) {
@@ -294,8 +298,8 @@ public class ErlApp {
                     s.println("curl http://localhost:$PORTNR/redefine?original=" + ErlUtil.getName(nc) + "\\&updated=" + modName);
                     CodeStream f = new CodeStream(new File(destDir, modName));
 
-                    boolean hasFields = nc.getParams().hasChildren()
-                        || nc.getFields().hasChildren();
+                    boolean hasFields = nc.getParams().getNumChild() > 0
+                        || nc.getFields().getNumChild() > 0;
                     f.pf("-module(%s).", modName);
                     URLConnection resource = getClass().getResource("").openConnection();
                     if (resource instanceof JarURLConnection) {

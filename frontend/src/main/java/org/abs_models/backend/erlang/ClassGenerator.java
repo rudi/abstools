@@ -35,7 +35,7 @@ public class ClassGenerator {
         this.classDecl = classDecl;
         modName = ErlUtil.getName(classDecl);
         ecs = ea.createSourceFile(modName);
-        hasFields = classDecl.getParams().hasChildren() || classDecl.getFields().hasChildren();
+        hasFields = classDecl.getParams().getNumChild() > 0 || classDecl.getFields().getNumChild() > 0;
         try {
             generateHeader(ecs, classDecl, modName);
             generateExports(ecs, classDecl);
@@ -49,8 +49,8 @@ public class ClassGenerator {
     }
 
     static void generateHeader(CodeStream ecs, ClassDecl classDecl, String modName) {
-        boolean hasFields = classDecl.getParams().hasChildren()
-            || classDecl.getFields().hasChildren();
+        boolean hasFields = classDecl.getParams().getNumChild() > 0
+            || classDecl.getFields().getNumChild() > 0;
         ecs.pf("-module(%s).", modName);
         ecs.println("-include_lib(\"../include/abs_types.hrl\").");
         if (hasFields) {
@@ -89,12 +89,14 @@ public class ClassGenerator {
                 ecs.println("false ->");
                 ecs.incIndent();
                 ecs.println("io:format(standard_error, \"Uncaught ~s in method " + ms.getName() + " not handled successfully by recovery block, killing object ~s~n\", [builtin:toString(Cog, Exception), builtin:toString(Cog, O)]),");
+                ecs.println("io:format(standard_error, \"stacktrace: ~tp~n\", [erlang:get_stacktrace()]),");
                 ecs.println("object:die(O, Exception), exit(Exception)");
                 ecs.decIndent().println("end");
                 ecs.decIndent();
             } else {
                 ecs.incIndent();
                 ecs.println("io:format(standard_error, \"Uncaught ~s in method " + ms.getName() + " and no recovery block in class definition, killing object ~s~n\", [builtin:toString(Cog, Exception), builtin:toString(Cog, O)]),");
+                ecs.println("io:format(standard_error, \"stacktrace: ~tp~n\", [erlang:get_stacktrace()]),");
                 ecs.println("object:die(O, Exception), exit(Exception)");
                 ecs.decIndent();
             }
@@ -127,7 +129,7 @@ public class ClassGenerator {
             ecs.println(",");
         }
         if (classDecl.isActiveClass()) {
-            ecs.println("cog:process_is_blocked_for_gc(Cog, self(), get(this)),");
+            ecs.println("cog:process_is_blocked_for_gc(Cog, self(), get(process_info), get(this)),");
             ecs.print("cog:add_task(Cog,active_object_task,null,O,[],#process_info{method= <<\"run\"/utf8>>,this=O,destiny=null},");
             ecs.print(vars.toStack());
             ecs.println("),");
@@ -196,8 +198,8 @@ public class ClassGenerator {
     }
 
     static void generateDataAccess(CodeStream ecs, ClassDecl classDecl, String modName) {
-        boolean hasFields = classDecl.getParams().hasChildren()
-            || classDecl.getFields().hasChildren();
+        boolean hasFields = classDecl.getParams().getNumChild() > 0
+            || classDecl.getFields().getNumChild() > 0;
         ecs.println("%% --- Internal state and low-level accessors\n");
         ecs.format("-record(state,{'class'=%s", modName);
         for (TypedVarOrFieldDecl f : Iterables.concat(classDecl.getParams(), classDecl.getFields())) {

@@ -40,7 +40,7 @@ public class ParseSamplesTest extends FrontendTest {
         return Arrays.asList(data);
     }
 
-    final private String input;
+    final protected String input;
     final protected String product;
     protected Model m;
 
@@ -51,10 +51,6 @@ public class ParseSamplesTest extends FrontendTest {
 
     @Test
     public void test() throws Exception {
-        m = parse(input);
-    }
-
-    protected Model parse(String input) throws Exception {
-        return assertParseFileOk(input, true);
+        m = assertParseFileOk(input);
     }
 }

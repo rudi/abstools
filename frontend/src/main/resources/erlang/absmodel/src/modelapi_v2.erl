@@ -25,7 +25,9 @@ init(Req, _Opts) ->
                                              Req);
             <<"compile">> -> handle_compile_request(cowboy_req:parse_qs(Req), Req);
             <<"redefine">> -> handle_redefine_request(cowboy_req:parse_qs(Req));
-            <<"quit">> -> halt(0);              %sorry
+            %% KLUDGE: it would be nice to send a response to the
+            %% client instead of just closing the stream
+            <<"quit">> -> halt(0);
             _ -> {404, <<"text/plain">>, <<"Not found">>}
         end,
     Req2 = cowboy_req:reply(Status, #{<<"content-type">> => ContentType},
@@ -271,7 +273,18 @@ decode_parameter(Value, Type, TypeArgs) ->
             end;
         <<"ABS.StdLib.List">> ->
             {Type2, TypeArgs2} = TypeArgs,
-            lists:map(fun(V) -> decode_parameter(V, Type2, TypeArgs2) end, Value)
+            lists:map(fun(V) -> decode_parameter(V, Type2, TypeArgs2) end, Value);
+        <<"ABS.StdLib.Map">> ->
+            {<<"ABS.StdLib.String">>, { }, Type2, TypeArgs2} = TypeArgs,
+            lists:foldl(
+              fun({K, V}, AccIn) ->
+                      { dataInsertAssoc,
+                        { dataPair, K,
+                          decode_parameter(V, Type2, TypeArgs2) },
+                        AccIn }
+              end,
+              dataEmptyMap,
+              Value)
     end.
 
 abs_to_json(true) -> true;

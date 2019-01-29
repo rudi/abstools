@@ -35,21 +35,21 @@ start(null,_Method,_Params, _Info, _Cog, _Stack) ->
     throw(dataNullPointerException);
 start(Callee,Method,Params, Info, Cog, Stack) ->
     {ok, Ref} = gen_statem:start(?MODULE,[Callee,Method,Params,Info,true,self()], []),
-    wait_for_future_start(Cog, [Ref | Stack]),
+    wait_for_future_start(Ref, Cog, Stack),
     Ref.
 
-wait_for_future_start(Cog, Stack) ->
+wait_for_future_start(Ref, Cog, Stack) ->
     receive
         {started, _Ref} ->
             ok;
         {stop_world, _Sender} ->
-            cog:process_is_blocked_for_gc(Cog, self(), get(this)),
+            cog:process_is_blocked_for_gc(Cog, self(), get(process_info), get(this)),
             cog:process_is_runnable(Cog, self()),
-            task:wait_for_token(Cog, Stack),
-            wait_for_future_start(Cog, Stack);
+            task:wait_for_token(Cog, [Ref | Stack]),
+            wait_for_future_start(Ref, Cog, Stack);
         {get_references, Sender} ->
-            cog:submit_references(Sender, gc:extract_references(Stack)),
-            wait_for_future_start(Cog, Stack)
+            cog:submit_references(Sender, gc:extract_references([Ref | Stack])),
+            wait_for_future_start(Ref, Cog, Stack)
     end.
 
 
@@ -86,7 +86,7 @@ get_blocking(Future, Cog, Stack) ->
         false ->
             %% Tell future not to advance time until we picked up ourselves
             register_waiting_task(Future, self()),
-            cog:process_is_blocked(Cog,self(), get(this)),
+            cog:process_is_blocked(Cog,self(), get(process_info), get(this)),
             (fun Loop() ->
                      receive
                          {value_present, Future, _CalleeCog} ->
@@ -97,12 +97,12 @@ get_blocking(Future, Cog, Stack) ->
                              %% deadlock later.
                              Loop();
                          {get_references, Sender} ->
-                             cog:submit_references(Sender, gc:extract_references(Stack)),
+                             cog:submit_references(Sender, gc:extract_references([Future | Stack])),
                              Loop()
                      end end)(),
             cog:process_is_runnable(Cog, self()),
             confirm_wait_unblocked(Future, self()),
-            task:wait_for_token(Cog, Stack),
+            task:wait_for_token(Cog, [Future | Stack]),
             get_after_await(Future)
     end.
 
@@ -121,11 +121,11 @@ await(Future, Cog, Stack) ->
                              %% cog idle).
                              cog:process_is_runnable(Cog,self()),
                              confirm_wait_unblocked(Future, self()),
-                             task:wait_for_token(Cog, Stack);
+                             task:wait_for_token(Cog, [Future | Stack]);
                          {stop_world, _Sender} ->
                              Loop();
                          {get_references, Sender} ->
-                             cog:submit_references(Sender, gc:extract_references(Stack)),
+                             cog:submit_references(Sender, gc:extract_references([Future | Stack])),
                              Loop()
                      end end)()
     end.
@@ -179,9 +179,12 @@ callback_mode() -> state_functions.
 init([Callee=#object{ref=Object,cog=Cog=#cog{ref=CogRef}},Method,Params,Info,RegisterInGC,Caller]) ->
     %%Start task
     process_flag(trap_exit, true),
-    MonRef=monitor(process,CogRef),
+    %% We used to wrap the following line in a
+    %% erlang:monitor(process, CogRef) / erlang:demonitor()
+    %% call, but if Object is alive, so is (presumably)
+    %% CogRef, and Object cannot have been garbage-collected
+    %% in the meantime.
     TaskRef=cog:add_task(Cog,async_call_task,self(),Callee,[Method|Params], Info#process_info{this=Callee,destiny=self()}, Params),
-    demonitor(MonRef),
     case RegisterInGC of
         true -> gc:register_future(self());
         false -> ok
@@ -211,13 +214,6 @@ init([_Callee=null,_Method,_Params,RegisterInGC,Caller]) ->
 
 
 
-handle_info({'DOWN', _ , process, _,Reason}, running, Data=#data{register_in_gc=RegisterInGC, waiting_tasks=WaitingTasks, calleecog=CalleeCog}) when Reason /= normal ->
-    lists:map(fun (Task) -> Task ! {value_present, self(), CalleeCog} end, WaitingTasks),
-    case RegisterInGC of
-        true -> gc:unroot_future(self());
-        false -> ok
-    end,
-    {next_state, completed, Data#data{value={error,error_transform:transform(Reason)}}};
 handle_info({'EXIT',_Pid,Reason}, running, Data=#data{register_in_gc=RegisterInGC, waiting_tasks=WaitingTasks, calleecog=CalleeCog}) ->
     lists:map(fun (Task) -> Task ! {value_present, self(), CalleeCog} end, WaitingTasks),
     case RegisterInGC of

@@ -88,6 +88,11 @@ public class ModuleSystemTests extends FrontendTest {
         assertTypeOK("module A; export *; data X; module E; export *; data Z; module B; export * from E; export * from A; import * from A; import * from E; module C; import * from B; type Y = X; ");
     }
 
+    @Test
+    public void exportImportSwapped() {
+        // test the relaxed order of import and export clauses
+        assertTypeOK("module A; export *; data Foo; data Bar; module B; export Baz; import Foo from A; export Glunk; import Bar from A; type Baz = Foo; type Glunk = Bar;");
+    }
     // NEGATIVE TESTS
 
     @Test
@@ -194,7 +199,7 @@ public class ModuleSystemTests extends FrontendTest {
     
     @Test
     public void ambigiousUseFunction() {
-        assertTypeErrorsWithStdLib("module A; export *; def Int foo() = 3;" +
+        assertTypeErrors("module A; export *; def Int foo() = 3;" +
                      "module B; export *; def Int foo() = 4;" +
                      "module C; import * from A; import * from B; {Int x = foo(); } ");
     }
@@ -210,7 +215,7 @@ public class ModuleSystemTests extends FrontendTest {
     public void shadowImportedNames() {
         // see bug #271
         // the definition of interface I in B should shadow the imported interface 
-        assertTypeErrorsWithStdLib("module A; export I;\n" +
+        assertTypeErrors("module A; export I;\n" +
         		"interface I{ Unit a(); }\n" +
         		"\n" +
                         "module B; import I from A; \n" +
@@ -251,22 +256,11 @@ public class ModuleSystemTests extends FrontendTest {
     public void circularDefinition() {
         assertTypeErrors("module A; export X; import X from B; module B; export X; import X from A; ");
     }
-    
-    protected void assertTypeOKWithStdLib(String absCode) {
-        assertTypeErrors(absCode, NONE, WITH_STD_LIB);
-    }
 
-    protected void assertTypeErrorsWithStdLib(String absCode) {
-        assertTypeErrors(absCode, EXPECT_TYPE_ERROR, WITH_STD_LIB);
-    }
-    
-    protected void assertTypeOK(String absCode) {
-        assertTypeErrors(absCode, NONE);
-    }
+    @Test
+    public void importPartialStdLib() {
+        assertTypeErrors("module A; import Unit from ABS.StdLib;\n" +
+                 "{ println(\"println not imported and hence not accessible\"); } \n");
 
-    @Override
-    protected SemanticCondition assertTypeErrors(String absCode) {
-       return assertTypeErrors(absCode, EXPECT_TYPE_ERROR);
     }
-
 }

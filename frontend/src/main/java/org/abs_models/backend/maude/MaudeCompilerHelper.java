@@ -4,13 +4,13 @@
  */
 package org.abs_models.backend.maude;
 
-import org.abs_models.common.CompilerUtils;
+import java.io.PrintStream;
+
+import org.abs_models.frontend.analyser.AnnotationHelper;
 import org.abs_models.frontend.ast.Annotation;
 import org.abs_models.frontend.ast.List;
 import org.abs_models.frontend.ast.PureExp;
 import org.abs_models.frontend.typechecker.Type;
-
-import java.io.PrintStream;
 
 public class MaudeCompilerHelper {
     public static void emitParameterValueList(PrintStream stream,
@@ -40,7 +40,7 @@ public class MaudeCompilerHelper {
                                           List<Annotation> annotations,
                                           int defaultValue)
     {
-        PureExp cost = CompilerUtils.getAnnotationValueFromName(annotations, "ABS.DC.Cost");
+        PureExp cost = AnnotationHelper.getAnnotationValueFromName(annotations, "ABS.DC.Cost");
         if (cost != null || defaultValue > 0) {
             stream.print("$cost(");
             if (cost == null) {

@@ -15,12 +15,6 @@
 -behaviour(gc).
 -export([send_stop_for_gc/1, get_references_for_cog/1]).
 
-%% Terminate recklessly.  Used to shutdown system when clock limit reached (if
-%% applicable).  Must be called when cog is stopped for GC.  (See
-%% `cog_monitor:advance_clock_or_terminate'.)
--export([kill_recklessly/1]).
-
-
 %%Task behaviours have to implemented:
 %% init(Cog,Future,Object,Args): Can block and will init the task.  Return
 %% value will be passed to start/1
@@ -54,10 +48,6 @@ send_stop_for_gc(Task) ->
 get_references_for_cog(Task) ->
     Task ! {get_references, self()}.
 
-kill_recklessly(Task) ->
-    Task ! die_prematurely,
-    ok.
-
 %%Register for termination notifcation
 notifyEnd(TaskRef)->
     notifyEnd(TaskRef,self()).
@@ -90,10 +80,7 @@ loop_for_clock_advance(Cog, Stack) ->
             loop_for_clock_advance(Cog, Stack);
         {get_references, Sender} ->
             cog:submit_references(Sender, gc:extract_references(Stack)),
-            loop_for_clock_advance(Cog, Stack);
-        die_prematurely ->
-            send_notifications(killed_by_the_clock),
-            exit(killed_by_the_clock)
+            loop_for_clock_advance(Cog, Stack)
     end.
 
 wait_for_token(Cog, Stack) ->
@@ -106,10 +93,7 @@ wait_for_token(Cog, Stack) ->
             wait_for_token(Cog, Stack);
         {get_references, Sender} ->
             cog:submit_references(Sender, gc:extract_references(Stack)),
-            wait_for_token(Cog, Stack);
-        die_prematurely ->
-            send_notifications(killed_by_the_clock),
-            exit(killed_by_the_clock)
+            wait_for_token(Cog, Stack)
     end.
 
 %% Check for legal amounts of min, max; if Max < Min, use Max only
@@ -131,8 +115,8 @@ await_duration(Cog=#cog{ref=CogRef},MMin,MMax,Stack) ->
             release_token(Cog,waiting),
             loop_for_clock_advance(Cog, Stack),
             cog:process_is_runnable(Cog, self()),
-            cog_monitor:task_confirm_clock_wakeup(self()),
-            wait_for_token(Cog, Stack);
+            wait_for_token(Cog, Stack),
+            cog_monitor:task_confirm_clock_wakeup(self());
         _ ->
             ok
     end.
@@ -141,11 +125,11 @@ block_for_duration(Cog=#cog{ref=CogRef},MMin,MMax,Stack) ->
     case check_duration_amount(MMin, MMax) of
         {Min, Max} ->
             cog_monitor:cog_blocked_for_clock(self(), CogRef, Min, Max),
-            cog:process_is_blocked(Cog,self(), get(this)),
+            cog:process_is_blocked(Cog,self(), get(process_info), get(this)),
             loop_for_clock_advance(Cog, Stack),
             cog:process_is_runnable(Cog, self()),
-            cog_monitor:task_confirm_clock_wakeup(self()),
-            wait_for_token(Cog, Stack);
+            wait_for_token(Cog, Stack),
+            cog_monitor:task_confirm_clock_wakeup(self());
         _ ->
             ok
     end.
@@ -160,11 +144,11 @@ block_for_resource(Cog=#cog{ref=CogRef}, DC, Resourcetype, Amount, Stack) ->
                 wait ->
                     Time=clock:distance_to_next_boundary(),
                     cog_monitor:task_waiting_for_clock(self(), CogRef, Time, Time),
-                    cog:process_is_blocked(Cog,self(), get(this)), % cause clock advance
+                    cog:process_is_blocked(Cog,self(), get(process_info), get(this)), % cause clock advance
                     loop_for_clock_advance(Cog, Stack),
                     cog:process_is_runnable(Cog, self()),
-                    cog_monitor:task_confirm_clock_wakeup(self()),
                     wait_for_token(Cog,Stack),
+                    cog_monitor:task_confirm_clock_wakeup(self()),
                     block_for_resource(Cog, DC, Resourcetype, Remaining, Stack);
                 ok ->
                     case rationals:is_positive(Remaining) of

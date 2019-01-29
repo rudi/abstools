@@ -40,7 +40,7 @@ public class ErlUtil {
             b.append("P_" + p.getName());
         }
 
-        if (args.hasChildren()) {
+        if (args.getNumChild() > 0) {
             b.append(',');
         }
 
@@ -120,7 +120,7 @@ public class ErlUtil {
         ecs.print("[");
         buildParamsWithOutBrackets(ecs, params, vars);
 
-        if (params.hasChildren()) {
+        if (params.getNumChild() > 0) {
             ecs.print(',');
         }
 
@@ -148,13 +148,13 @@ public class ErlUtil {
         ecs.print("(");
         if (callee != null) {
             callee.generateErlangCode(ecs, vars);
-            if (params.hasChildren()) {
+            if (params.getNumChild() > 0) {
                 ecs.print(",");
             }
 
         } else {
             ecs.print("Cog");
-            if (params.hasChildren()) {
+            if (params.getNumChild() > 0) {
                 ecs.print(",");
             }
         }
@@ -179,7 +179,7 @@ public class ErlUtil {
         ecs.incIndent();
         ecs.println("{stop_world, CogRef} ->");
         ecs.incIndent();
-        ecs.println("cog:process_is_blocked_for_gc(Cog, self(), get(this)),");
+        ecs.println("cog:process_is_blocked_for_gc(Cog, self(), get(process_info), get(this)),");
         ecs.println("cog:process_is_runnable(Cog,self()),");
         ecs.print("task:wait_for_token(Cog,");
         if (functional) {
@@ -187,13 +187,11 @@ public class ErlUtil {
         } else {
             ecs.print(vars.toStack());
         }
-        ecs.println(");");
-        ecs.decIndent().println("die_prematurely ->");
-        ecs.incIndent().println("task:send_notifications(killed_by_the_clock),");
-        ecs.println("exit(killed_by_the_clock)");
+        ecs.println(")");
         ecs.decIndent();
+        ecs.println("after 0 -> ok");
         ecs.decIndent();
-        ecs.println("after 0 -> ok end,");
+        ecs.println("end,");
     }
 
     public static void emitLocationInformation(CodeStream ecs, Model m, String filename, int start, int end) {
