@@ -5,6 +5,8 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      LANG: en_US.UTF-8
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -16,11 +18,9 @@ jobs:
     - name: Install Erlang
       uses: gleam-lang/setup-erlang@v1.1.2
       with:
-        otp-version: '23.2'
+        otp-version: '23.3.1'
     - name: Run tests
       uses: eskatos/gradle-command-action@v1
-      env:
-        LANG: en_US.UTF-8
       with:
         arguments: test
     - name: Test Report

@@ -5,6 +5,8 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      LANG: en_US.UTF-8
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -16,10 +18,8 @@ jobs:
     - name: Install Erlang
       uses: gleam-lang/setup-erlang@v1.1.2
       with:
-        otp-version: '23.2'
+        otp-version: '23.3.1'
     - name: Build abstools
       uses: eskatos/gradle-command-action@v1
-      env:
-        LANG: en_US.UTF-8
       with:
         arguments: build -x check -x test
